@@ -85,3 +85,46 @@ def alert(slack_message):
         logger.error("Request failed: %d %s", e.code, e.reason)
     except URLError as e:
         logger.error("Server connection failed: %s", e.reason)
+
+   '''     
+   {
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "Stmt1443036478000",
+            "Effect": "Allow",
+            "Action": [
+                "kms:Decrypt"
+            ],
+            "Resource": [
+                "*"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:*:*:*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "sns:Publish"
+            ],
+            "Resource": "arn:aws:sns:*:*:*"
+        }
+    ]
+}
+
+
+
+{
+  "source": [
+    "aws.health",
+    "aws.ec2"
+  ]
+}     
+'''
