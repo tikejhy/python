@@ -7,8 +7,9 @@ import os
 
 from urllib2 import Request, urlopen, URLError, HTTPError
 
-SLACK_CHANNEL = "#general"
-HOOK_URL = "https://hooks.slack.com/services/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"
+SLACK_CHANNEL = os.environ['slackChannel']
+HOOK_URL = os.environ['HookUrl']
+USER_NAME = os.environ['project']
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -37,6 +38,7 @@ def lambda_handler(event, context):
             message =  str('User: ' + event['detail']['userIdentity']['userName'] + event['detail']['userIdentity']['arn'] + ' : Initiated : ' + event['detail']['eventName'])
             slack_message = {
                 'channel': SLACK_CHANNEL,
+                'username': USER_NAME,
                 'text': message
             }
             alert(slack_message)
@@ -46,6 +48,7 @@ def lambda_handler(event, context):
                 message =  str(event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details.")
                 slack_message = {
                     'channel': SLACK_CHANNEL,
+                    'username': USER_NAME,
                     'text': message
                 }
                 alert(slack_message)
@@ -55,6 +58,7 @@ def lambda_handler(event, context):
                     message =  str("AWS Instance ID:" + event['detail']['instance-id'] + "::" + event['detail']['state'])
                     slack_message = {
                         'channel': SLACK_CHANNEL,
+                        'username': USER_NAME,
                         'text': message
                     }
                     alert(slack_message)
@@ -64,12 +68,14 @@ def lambda_handler(event, context):
                         message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
                         slack_message = {
                             'channel': SLACK_CHANNEL,
+                            'username': USER_NAME,
                             'text': message
                         }
                         alert(slack_message)
                     except (KeyError, TypeError) as e:
                     	slack_message = {
                 			'channel': SLACK_CHANNEL,
+                			'username': USER_NAME,
                 			'text': 'No rules matched :confused: \n\n Raw event:' + dbg_message
             			}
                     	alert(slack_message)    
