@@ -1,83 +1,3 @@
-resource "aws_iam_role" "iam_for_lambda" {
-  name = "iam_for_lambda"
-
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-}
-
-resource "aws_iam_role_policy" "tf_slack_hook" {
-  name = "tf_slack_hook_policy"
-  role = "${aws_iam_role.iam_for_lambda.id}"
-
-  policy =<<EOF
-{
-    "Version": "2012-10-17",
-    "Statement": [
-        {
-            "Sid": "Stmt1443036478000",
-            "Effect": "Allow",
-            "Action": [
-                "kms:Decrypt"
-            ],
-            "Resource": [
-                "*"
-            ]
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "logs:CreateLogGroup",
-                "logs:CreateLogStream",
-                "logs:PutLogEvents"
-            ],
-            "Resource": "arn:aws:logs:*:*:*"
-        },
-        {
-            "Effect": "Allow",
-            "Action": [
-                "sns:Publish"
-            ],
-            "Resource": "arn:aws:sns:*:*:*"
-        }
-    ]
-}
-
-EOF
-}
-
-
-resource "aws_lambda_function" "tf_test_lambda" {
-  filename         = "slack_hook.zip"
-  function_name    = "slack_hook"
-  role             = "${aws_iam_role.iam_for_lambda.arn}"
-  handler          = "slack_hook.lambda_handler"
-  source_code_hash = "${base64sha256(file("slack_hook.zip"))}"
-  runtime          = "python2.7"
-  timeout	   = 15
-
-  environment {
-    variables = {
-      slackChannel 	= "general"
-      project	   	= "fromAWS"
-      HookUrl 		= ""
-    }
-  }
-}
-
-
 from __future__ import print_function
 
 import boto3
@@ -87,81 +7,67 @@ import os
 
 from urllib2 import Request, urlopen, URLError, HTTPError
 
-SLACK_CHANNEL = os.environ['slackChannel']
-HOOK_URL = os.environ['HookUrl']
-USER_NAME = os.environ['project']
-logger = logging.getLogger()
+SLACK_CHANNEL       = os.environ['slackChannel']
+HOOK_URL            = os.environ['HookUrl']
+USER_NAME           = os.environ['project']
+SLACK_ICON_EMOJI    = ":aws:"
+logger              = logging.getLogger()
+
 logger.setLevel(logging.INFO)
 
 
 def lambda_handler(event, context):
-    #dbg_message = str(event)            #shows unicode string
-    #dbg_message = json.loads(event)     #"errorMessage": "expected string or buffer"
     dbg_message = json.dumps(event)      #takes an object and produces a string
-    
+
     try:
-        logger.info('1:')
+        logger.info('General Alarm: Can be used for Cloudwatch alerts e.g CPU alerts')
         message = json.loads(event['Records'][0]['Sns']['Message'])
-        
+
         alarm_name = message['AlarmName']
         new_state = message['NewStateValue']
         reason = message['NewStateReason']
         
-        slack_message = {
-                'channel': SLACK_CHANNEL,
-                'text': "%s state is now %s: %s" % (alarm_name, new_state, reason)
-            }
-        alert(slack_message)
+        slack_message = "%s state is now %s: %s" % (alarm_name, new_state, reason)
+        slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
+        
     except (KeyError, TypeError) as e:
         try:
-            logger.info('2:')
-            message =  str('User: ' + event['detail']['userIdentity']['userName'] + event['detail']['userIdentity']['arn'] + ' : Initiated : ' + event['detail']['eventName'])
-            slack_message = {
-                'channel': SLACK_CHANNEL,
-                'username': USER_NAME,
-                'text': message
-            }
-            alert(slack_message)
+            logger.info('API Alerts: can be used on any API Alerts such as cloudtrail triggering login alerts')
+            slack_message =  str('User: ' + event['detail']['userIdentity']['userName'] + event['detail']['userIdentity']['arn'] + ' : Initiated : ' + event['detail']['eventName'])
+            slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
         except (KeyError, TypeError) as e:
             try:
-                logger.info('3:')
-                message =  str(event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details.")
-                slack_message = {
-                    'channel': SLACK_CHANNEL,
-                    'username': USER_NAME,
-                    'text': message
-                }
-                alert(slack_message)
-            except (KeyError, TypeError) as e:            
+                logger.info('AWS.HEALTH Alerts: Health related alerts')
+                slack_message =  str(event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details.")
+                slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
+            except (KeyError, TypeError) as e:
                 try:
-                    logger.info('4:')
-                    message =  str("AWS Instance ID:" + event['detail']['instance-id'] + "::" + event['detail']['state'])
-                    slack_message = {
-                        'channel': SLACK_CHANNEL,
-                        'username': USER_NAME,
-                        'text': message
-                    }
-                    alert(slack_message)
+                    logger.info('EC2 Alerts: State of instance changed')
+                    slack_message =  str("AWS Instance ID:" + event['detail']['instance-id'] + "::" + event['detail']['state'])
+                    slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
                 except (KeyError, TypeError) as e:
                     try:
                         logger.info('5:')
-                        message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
-                        slack_message = {
-                            'channel': SLACK_CHANNEL,
-                            'username': USER_NAME,
-                            'text': message
-                        }
-                        alert(slack_message)
+                        slack_message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
+                        slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
                     except (KeyError, TypeError) as e:
-                    	slack_message = {
-                			'channel': SLACK_CHANNEL,
-                			'username': USER_NAME,
-                			'text': 'No rules matched :confused: \n\n Raw event:' + dbg_message
-            			}
-                    	alert(slack_message)    
+                        logger.info('6:')
+                        slack_message = 'No rules matched :confused: \n\n Raw event:'
+                        slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
+
+
+def slack_message_compose(slack_message, slack_channel, slack_username, slack_icon_emoji):
+        slack_message = {
+              'channel': slack_channel,
+              'username': slack_username,
+              'text': slack_message,
+              'icon_emoji': slack_icon_emoji
+        }
+        alert(slack_message)
+
 def alert(slack_message):
     logger.info(str(slack_message))
-    
+
     req = Request(HOOK_URL, json.dumps(slack_message))
     try:
         response = urlopen(req)
