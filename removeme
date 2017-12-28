@@ -47,7 +47,7 @@ def lambda_handler(event, context):
                     slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
                 except (KeyError, TypeError) as e:
                     try:
-                        logger.info('5:')
+                        logger.info('API Call alerts: with user arn')
                         slack_message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
                         slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
                     except (KeyError, TypeError) as e:
