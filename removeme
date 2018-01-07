@@ -28,33 +28,28 @@ def lambda_handler(event, context):
         reason = message['NewStateReason']
         
         slack_message = "%s state is now %s: %s" % (alarm_name, new_state, reason)
-        slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
         
     except (KeyError, TypeError) as e:
         try:
             logger.info('API Alerts: can be used on any API Alerts such as cloudtrail triggering login alerts')
             slack_message =  str('User: ' + event['detail']['userIdentity']['userName'] + event['detail']['userIdentity']['arn'] + ' : Initiated : ' + event['detail']['eventName'])
-            slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
         except (KeyError, TypeError) as e:
             try:
                 logger.info('AWS.HEALTH Alerts: Health related alerts')
+                #slack_message =  str(  event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details." + '\n \n' + 'Affected Resources:' + json.dumps(event['resources']))
                 slack_message =  str(event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details.")
-                slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
             except (KeyError, TypeError) as e:
                 try:
                     logger.info('EC2 Alerts: State of instance changed')
                     slack_message =  str("AWS Instance ID:" + event['detail']['instance-id'] + "::" + event['detail']['state'])
-                    slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
                 except (KeyError, TypeError) as e:
                     try:
                         logger.info('API Call alerts: with user arn')
                         slack_message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
-                        slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
                     except (KeyError, TypeError) as e:
                         logger.info('6:')
                         slack_message = 'No rules matched :confused: \n\n Raw event:'
-                        slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
-
+    slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
 
 def slack_message_compose(slack_message, slack_channel, slack_username, slack_icon_emoji):
         slack_message = {
