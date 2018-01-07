@@ -10,17 +10,15 @@ from urllib2 import Request, urlopen, URLError, HTTPError
 SLACK_CHANNEL       = os.environ['slackChannel']
 HOOK_URL            = os.environ['HookUrl']
 USER_NAME           = os.environ['project']
-SLACK_ICON_EMOJI    = ":aws:"
+SLACK_ICON_EMOJI    = os.environ['emoji']
 logger              = logging.getLogger()
 
 logger.setLevel(logging.INFO)
 
-
 def lambda_handler(event, context):
-    dbg_message = json.dumps(event)      #takes an object and produces a string
+    dbg_message = json.dumps(event)
 
     try:
-        logger.info('General Alarm: Can be used for Cloudwatch alerts e.g CPU alerts')
         message = json.loads(event['Records'][0]['Sns']['Message'])
 
         alarm_name = message['AlarmName']
@@ -31,23 +29,18 @@ def lambda_handler(event, context):
         
     except (KeyError, TypeError) as e:
         try:
-            logger.info('API Alerts: can be used on any API Alerts such as cloudtrail triggering login alerts')
             slack_message =  str('User: ' + event['detail']['userIdentity']['userName'] + event['detail']['userIdentity']['arn'] + ' : Initiated : ' + event['detail']['eventName'])
         except (KeyError, TypeError) as e:
             try:
-                logger.info('AWS.HEALTH Alerts: Health related alerts')
                 #slack_message =  str(  event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details." + '\n \n' + 'Affected Resources:' + json.dumps(event['resources']))
                 slack_message =  str(event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details.")
             except (KeyError, TypeError) as e:
                 try:
-                    logger.info('EC2 Alerts: State of instance changed')
                     slack_message =  str("AWS Instance ID:" + event['detail']['instance-id'] + "::" + event['detail']['state'])
                 except (KeyError, TypeError) as e:
                     try:
-                        logger.info('API Call alerts: with user arn')
                         slack_message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
                     except (KeyError, TypeError) as e:
-                        logger.info('6:')
                         slack_message = 'No rules matched :confused: \n\n Raw event:'
     slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
 
