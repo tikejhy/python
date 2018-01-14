@@ -32,18 +32,26 @@ def lambda_handler(event, context):
             slack_message =  str('User: ' + event['detail']['userIdentity']['userName'] + event['detail']['userIdentity']['arn'] + ' : Initiated : ' + event['detail']['eventName'])
         except (KeyError, TypeError) as e:
             try:
-                #slack_message =  str(  event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details." + '\n \n' + 'Affected Resources:' + json.dumps(event['resources']))
-                slack_message =  str(event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details.")
+                instance_id_from_event = str(event['detail']['instance-id'])
+                instance_name_fetched = get_instance_name_by_id(instance_id_from_event)
+                slack_message =  str("AWS Instance ID:  " + event['detail']['instance-id'] + " (" + instance_name_fetched + ") " + "  " + event['detail']['state'])
             except (KeyError, TypeError) as e:
                 try:
-                    instance_id_from_event = str(event['detail']['instance-id'])
-                    instance_name_fetched = get_instance_name_by_id(instance_id_from_event)
-                    slack_message =  str("AWS Instance ID:  " + event['detail']['instance-id'] + " (" + instance_name_fetched + ") " + "  " + event['detail']['state'])
+                    latestDescription = event['detail']['eventDescription'][0]['latestDescription']
+                    instance_id_from_event = event['resources']
+                    all_instance_name_fetched = []
+                    for idx, each_affected_instance_id in enumerate(instance_id_from_event):
+                        instance_name_fetched = get_instance_name_by_id(each_affected_instance_id)
+                        instance_id_name = str(instance_name_fetched + ' --> ' + each_affected_instance_id)
+                        all_instance_name_fetched.append([instance_id_name])
+                    slack_message =  str( event['detail']['eventDescription'][0]['latestDescription']  
+                                        + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" 
+                                        + event['detail']['eventArn'] 
+                                        + "|Click here> for details." 
+                                        + '\n \n' + 'Affected Resources: %s' %(all_instance_name_fetched))
                 except (KeyError, TypeError) as e:
-                    try:
-                        slack_message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
-                    except (KeyError, TypeError) as e:
-                        slack_message = 'No rules matched :confused: \n\n Raw event:'
+                    slack_message = 'No rules matched :confused: \n\n Raw event: %s' %(dbg_message)
+                    
     slack_message_compose(slack_message, SLACK_CHANNEL, USER_NAME, SLACK_ICON_EMOJI)
 
 def slack_message_compose(slack_message, slack_channel, slack_username, slack_icon_emoji):
