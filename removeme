@@ -36,7 +36,9 @@ def lambda_handler(event, context):
                 slack_message =  str(event['detail']['eventDescription'][0]['latestDescription']  + "\n\n<https://phd.aws.amazon.com/phd/home?region=eu-west-1#/event-log?eventID=" + event['detail']['eventArn'] + "|Click here> for details.")
             except (KeyError, TypeError) as e:
                 try:
-                    slack_message =  str("AWS Instance ID:" + event['detail']['instance-id'] + "::" + event['detail']['state'])
+                    instance_id_from_event = str(event['detail']['instance-id'])
+                    instance_name_fetched = get_instance_name_by_id(instance_id_from_event)
+                    slack_message =  str("AWS Instance ID:  " + event['detail']['instance-id'] + " (" + instance_name_fetched + ") " + "  " + event['detail']['state'])
                 except (KeyError, TypeError) as e:
                     try:
                         slack_message =  str("Event Name:" + event['detail']['eventName'] + ": Event Type:" + event['detail']['eventType'] + ": User ARN:" + event['detail']['userIdentity']['sessionContext']['sessionIssuer']['arn'])
@@ -52,6 +54,15 @@ def slack_message_compose(slack_message, slack_channel, slack_username, slack_ic
               'icon_emoji': slack_icon_emoji
         }
         alert(slack_message)
+
+def get_instance_name_by_id(fid):
+    ec2 = boto3.resource('ec2')
+    ec2instance = ec2.Instance(fid)
+    instancename = ''
+    for tags in ec2instance.tags:
+        if tags["Key"] == 'Name':
+            instancename = tags["Value"]
+    return instancename
 
 def alert(slack_message):
     logger.info(str(slack_message))
